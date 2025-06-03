@@ -2,8 +2,8 @@
 Contributors: webcodingplace
 Tags: woo, woocommerce, product, product expiry, woo notifications
 Requires at least: 3.5
-Tested up to: 6.6
-Stable tag: 2.6
+Tested up to: 6.8
+Stable tag: 2.7
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -23,6 +23,16 @@ You can make the products out of stock or draft automatically as the expiration 
 5. Expire date in order emails
 
 == Changelog ==
+
+= 2.7 =
+
+- Feature Added: Sorting by expiry date
+- Feature Added: 6 Months filter
+- Feature Added: Filter variable products
+- Feature Added: Variable products expiry date in admin column
+- Feature Added: Support with WooCommerce 9.8.5
+- Bug Fixed: Uncaught Error: Call to a member function get_meta()
+- Bug Fixed: Date is not displaying for variable products
 
 = 2.6 =
 

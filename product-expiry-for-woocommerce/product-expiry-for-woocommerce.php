@@ -3,7 +3,7 @@
  * Plugin Name: Product Expiry for WooCommerce
  * Plugin URI: https://webcodingplace.com/product-expiry-for-woocommerce/
  * Description: Provide expiry date for your products and get notified before expire
- * Version: 2.6
+ * Version: 2.7
  * Author: WebCodingPlace
  * Author URI: https://webcodingplace.com/
  * License: GPLv2 or later
@@ -46,6 +46,8 @@ class WOO_Product_Expiry {
         // Admin Columns and Quick Edit
         add_filter( 'manage_product_posts_columns', array($this, 'product_column_head'));
         add_action( 'manage_product_posts_custom_column', array($this, 'product_column_content'), 10, 2);
+        add_filter( 'manage_edit-product_sortable_columns', array($this, 'make_expiry_column_sortable') );
+        add_filter( 'pre_get_posts', array($this, 'sort_products_by_expiry_date') );
         add_action( 'woocommerce_product_quick_edit_start', array($this, 'show_woope_quick_edit') );
         add_action( 'woocommerce_product_quick_edit_save', array($this, 'save_woope_quick_edit') );
 
@@ -220,13 +222,46 @@ class WOO_Product_Expiry {
 
     function product_column_content($column_name, $product_ID){
         if ($column_name == 'woope_tab') {        
-            $expiry_date = get_post_meta( $product_ID, 'woo_expiry_date', true );
-            if ($expiry_date != '') {
-                $date_format = get_option( 'date_format' );
-                echo '<span id="expid-'.$product_ID.'" data-expdate="'.$expiry_date.'">'.date($date_format, strtotime($expiry_date)).'</span>';
+            $date_format = get_option('date_format');
+            $output = '';
+
+            // 1. Get expiry date of the main product
+            $expiry_date = get_post_meta($product_ID, 'woo_expiry_date', true);
+            if ($expiry_date) {
+                $output .= '<div><span id="expid-'.$product_ID.'" data-expdate="'.$expiry_date.'">' . date($date_format, strtotime($expiry_date)) . '</span></div>';
             } else {
-                echo '<span id="expid-'.$product_ID.'" title="'.__( 'No Date Set', 'product-expiry-for-woocommerce' ).'" class="dashicons dashicons-warning"></span>';
+                $output .= '<div><span id="expid-'.$product_ID.'" title="'.__( 'No Date Set', 'product-expiry-for-woocommerce' ).'" class="dashicons dashicons-warning"></span></div>';
             }
+
+            // 2. Check if product is variable
+            $product = wc_get_product($product_ID);
+            if ($product && $product->is_type('variable')) {
+                $children = $product->get_children(); // Variation IDs
+                foreach ($children as $variation_id) {
+                    $var_exp = get_post_meta($variation_id, 'woo_expiry_date', true);
+                    if ($var_exp) {
+                        $variation = wc_get_product($variation_id);
+                        if ($variation && $variation->exists()) {
+                            $attributes = $variation->get_attributes();
+                            $attr_output = [];
+                            foreach ($attributes as $attr_name => $attr_value) {
+                                $taxonomy = str_replace('attribute_', '', $attr_name);
+                                $term = get_term_by('slug', $attr_value, $taxonomy);
+                                if ($term && !is_wp_error($term)) {
+                                    $label = wc_attribute_label($taxonomy);
+                                    $attr_output[] = $label . ': ' . $term->name;
+                                } else {
+                                    $label = wc_attribute_label($taxonomy);
+                                    $attr_output[] = $label . ': ' . $attr_value;
+                                }
+                            }
+                            $output .= '<div><small>' . implode(', ', $attr_output) . ':</small> ' . esc_html(date($date_format, strtotime($var_exp))) . '</div>';
+                        }
+                    }
+                }
+            }
+
+            echo $output;
             wc_enqueue_js( "
                   $('#the-list').on('click', '.editinline', function() {
                      var post_id = $(this).closest('tr').attr('id');
@@ -235,6 +270,28 @@ class WOO_Product_Expiry {
                      $('input[name=\'woo_expiry_date\']', '.inline-edit-row').val(custom_field);
                     });
             " );
+        }
+    }
+
+    function make_expiry_column_sortable( $columns ) {
+        $columns['woope_tab'] = 'woo_expiry_date';
+        return $columns;
+    }
+
+    function sort_products_by_expiry_date( $query ) {
+        if (
+            ! is_admin() ||
+            ! $query->is_main_query() ||
+            $query->get('post_type') !== 'product'
+        ) {
+            return;
+        }
+
+        // Apply custom sorting for expiry column
+        if ( $query->get( 'orderby' ) === 'woo_expiry_date' ) {
+            $query->set( 'meta_key', 'woo_expiry_date' );
+            $query->set( 'orderby', 'meta_value' );
+            $query->set( 'meta_type', 'DATE' );
         }
     }
 
@@ -370,7 +427,7 @@ class WOO_Product_Expiry {
                 woocommerce_wp_text_input(
                     array(
                         'id'        => 'woo_expiry_note',
-                        'label'     => __( 'Expiry Note', 'product-expiry-for-woocommerce' ),
+                        'label'     => __( 'Expiry Note (Optional)', 'product-expiry-for-woocommerce' ),
                         'type'      => 'text',
                         'desc_tip'  => __( 'Provide text to display instead of the exp date', 'product-expiry-for-woocommerce' ),
                         'description'  => __( 'Provide text to display instead of the exp date', 'product-expiry-for-woocommerce' )
@@ -417,7 +474,7 @@ class WOO_Product_Expiry {
                 woocommerce_wp_text_input(
                     array(
                         'id'        => '_woope_exp_note[' . $variation->ID . ']',
-                        'label'     => __( 'Expiry Note', 'product-expiry-for-woocommerce' ),
+                        'label'     => __( 'Expiry Note (Optional)', 'product-expiry-for-woocommerce' ),
                         'type'      => 'text',
                         'class'    => 'wccs-variation',
                         'wrapper_class'    => 'form-row form-row-first',
@@ -523,6 +580,9 @@ class WOO_Product_Expiry {
 
         if($savedSettings['display'] == 'enable'){
             $product = wc_get_product();
+            if (!$product) {
+                return;
+            }
             $expiryDate = $product->get_meta('woo_expiry_date');
             $expiryNote = $product->get_meta('woo_expiry_note');
             if($expiryNote != ''){
@@ -564,67 +624,86 @@ class WOO_Product_Expiry {
                     <option value="this_month" <?php selected( $selected, 'this_month'); ?>><?php _e( 'Expiring this Month', 'product-expiry-for-woocommerce' ) ?></option>
                     <option value="next_month" <?php selected( $selected, 'next_month'); ?>><?php _e( 'Expiring next Month', 'product-expiry-for-woocommerce' ) ?></option>
                     <option value="three_months" <?php selected( $selected, 'three_months'); ?>><?php _e( 'Expiring within 3 Months', 'product-expiry-for-woocommerce' ) ?></option>
+                    <option value="six_months" <?php selected( $selected, 'six_months'); ?>><?php _e( 'Expiring within 6 Months', 'product-expiry-for-woocommerce' ) ?></option>
                     <option value="expired" <?php selected( $selected, 'expired'); ?>><?php _e( 'Already Expired', 'product-expiry-for-woocommerce' ) ?></option>
                 </select>
             <?php
         }
     }
 
-    function expiry_filter_results($query){
-
-        //modify the query only if it admin and main query.
-        if( !(is_admin() AND $query->is_main_query()) ){
-          return $query;
+    function expiry_filter_results($query) {
+        if (!(is_admin() && $query->is_main_query())) {
+            return $query;
         }
 
-        //we want to modify the query for the targeted custom post and filter option
-        if( !('product' === $query->query['post_type']) ){
-          return $query;
+        if (!isset($query->query['post_type']) || $query->query['post_type'] !== 'product') {
+            return $query;
         }
 
-        if (isset($_GET['expiry_period']) && $_GET['expiry_period'] != '') {
-            $exp_period = sanitize_text_field( $_GET['expiry_period'] );
-            if ($exp_period == 'this_month') {
-                $today = date('Y-m-d');
-                $last_day_this_month  = date('Y-m-t');
-                $query->query_vars['meta_query'][] = array(
-                    'key'     => 'woo_expiry_date',
-                    'value'   => array( $today, $last_day_this_month ),
-                    'type'    => 'DATE',
-                    'compare' => 'BETWEEN',
-                );
-            }
-            if ($exp_period == 'next_month') {
-                $next_month_start = date("Y-m-01", strtotime( '+1 month' ));
-                $next_month_end = date("Y-m-t", strtotime( '+1 month' ));
-                $query->query_vars['meta_query'][] = array(
-                    'key'     => 'woo_expiry_date',
-                    'value'   => array( $next_month_start, $next_month_end ),
-                    'type'    => 'DATE',
-                    'compare' => 'BETWEEN',
-                );
-            }
-            if ($exp_period == 'three_months') {
-                $today = date('Y-m-d');
-                $third_month_end = date("Y-m-t", strtotime( '+3 month' ));
-                $query->query_vars['meta_query'][] = array(
-                    'key'     => 'woo_expiry_date',
-                    'value'   => array( $today, $third_month_end ),
-                    'type'    => 'DATE',
-                    'compare' => 'BETWEEN',
-                );
-            }
-            if ($exp_period == 'expired') {
-                $query->query_vars['meta_query'][] = array(
-                    'key'     => 'woo_expiry_date',
-                    'value'   => date('Y-m-d'),
-                    'type'    => 'DATE',
-                    'compare' => '<=',
-                );
+        if (!isset($_GET['expiry_period']) || $_GET['expiry_period'] === '') {
+            return $query;
+        }
+
+        global $wpdb;
+
+        $exp_period = sanitize_text_field($_GET['expiry_period']);
+        $today = date('Y-m-d');
+        $meta_condition = '';
+
+        if ($exp_period === 'this_month') {
+            $start = $today;
+            $end = date('Y-m-t');
+            $meta_condition = "meta_value BETWEEN '$start' AND '$end'";
+        } elseif ($exp_period === 'next_month') {
+            $start = date("Y-m-01", strtotime('+1 month'));
+            $end = date("Y-m-t", strtotime('+1 month'));
+            $meta_condition = "meta_value BETWEEN '$start' AND '$end'";
+        } elseif ($exp_period === 'three_months') {
+            $start = $today;
+            $end = date("Y-m-t", strtotime('+3 month'));
+            $meta_condition = "meta_value BETWEEN '$start' AND '$end'";
+        } elseif ($exp_period === 'six_months') {
+            $start = $today;
+            $end = date("Y-m-t", strtotime('+6 month'));
+            $meta_condition = "meta_value BETWEEN '$start' AND '$end'";
+        } elseif ($exp_period === 'expired') {
+            $meta_condition = "meta_value <= '$today'";
+        }
+
+        // Get variation parent IDs that match the expiry condition
+        if ($meta_condition) {
+            $parent_ids = $wpdb->get_col("
+                SELECT DISTINCT p.post_parent
+                FROM {$wpdb->prefix}postmeta pm
+                INNER JOIN {$wpdb->prefix}posts p ON pm.post_id = p.ID
+                WHERE pm.meta_key = 'woo_expiry_date'
+                AND $meta_condition
+                AND p.post_type = 'product_variation'
+                AND p.post_status = 'publish'
+            ");
+
+            // Also get simple product IDs directly matching
+            $simple_ids = $wpdb->get_col("
+                SELECT post_id
+                FROM {$wpdb->prefix}postmeta pm
+                INNER JOIN {$wpdb->prefix}posts p ON pm.post_id = p.ID
+                WHERE pm.meta_key = 'woo_expiry_date'
+                AND $meta_condition
+                AND p.post_type = 'product'
+                AND p.post_status = 'publish'
+            ");
+
+            $all_ids = array_unique(array_merge($simple_ids, $parent_ids));
+
+            if (!empty($all_ids)) {
+                $query->set('post__in', $all_ids);
+            } else {
+                $query->set('post__in', array(0)); // No match fallback
             }
         }
 
         return $query;
     }
+
 }
 new WOO_Product_Expiry();
