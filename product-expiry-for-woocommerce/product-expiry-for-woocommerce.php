@@ -3,7 +3,7 @@
  * Plugin Name: Product Expiry for WooCommerce
  * Plugin URI: https://webcodingplace.com/product-expiry-for-woocommerce/
  * Description: Provide expiry date for your products and get notified before expire
- * Version: 2.7
+ * Version: 2.9
  * Author: WebCodingPlace
  * Author URI: https://webcodingplace.com/
  * License: GPLv2 or later
@@ -138,8 +138,19 @@ class WOO_Product_Expiry {
                 } elseif ($woope_date != '') {
                     $dateFormat = $savedSettings['date_format'];
                     $formattedDate = date($dateFormat, strtotime($woope_date));
-                    $text = str_replace("%date%", $formattedDate, $savedSettings['markup']);
-                    $variations['woope_text'] = $text;   
+
+                    $markup = str_replace('%date%', '{{expiry_date}}', $savedSettings['markup']);
+
+                    $markup = apply_filters(
+                        'wpml_translate_single_string',
+                        $markup,
+                        'product-expiry-for-woocommerce',
+                        'date-markup'
+                    );
+
+                    $text = str_replace('{{expiry_date}}', $formattedDate, $markup);
+
+                    $variations['woope_text'] = $text;
                 }
             }
         }
@@ -165,11 +176,22 @@ class WOO_Product_Expiry {
                 if($savedSettings['orderdetails'] == 'enable'){
                     $dateFormat = $savedSettings['date_format'];
                     $formattedDate = date($dateFormat, strtotime($expiryDate));
-                    $text = str_replace("%date%", $formattedDate, $savedSettings['markup']);
+
+                    $markup = str_replace('%date%', '{{expiry_date}}', $savedSettings['markup']);
+
+                    $markup = apply_filters(
+                        'wpml_translate_single_string',
+                        $markup,
+                        'product-expiry-for-woocommerce',
+                        'date-markup'
+                    );
+
+                    $text = str_replace('{{expiry_date}}', $formattedDate, $markup);
+
                     if ($expiryNote != '') {
                         $text = $expiryNote;
                     }
-                    echo '<div class="woope-notice">'.$text.'</div>';
+                    echo '<div class="woope-notice">'.wp_kses_post( $text ).'</div>';
                 }
             }
         }
@@ -191,7 +213,18 @@ class WOO_Product_Expiry {
             if($savedSettings['orderdetailsadmin'] == 'enable'){
                 $dateFormat = $savedSettings['date_format'];
                 $formattedDate = date($dateFormat, strtotime($expiryDate));
-                $text = str_replace("%date%", $formattedDate, $savedSettings['markup']);
+
+                $markup = str_replace('%date%', '{{expiry_date}}', $savedSettings['markup']);
+
+                $markup = apply_filters(
+                    'wpml_translate_single_string',
+                    $markup,
+                    'product-expiry-for-woocommerce',
+                    'date-markup'
+                );
+
+                $text = str_replace('{{expiry_date}}', $formattedDate, $markup);
+
                 if ($expiryNote != '') {
                     $text = $expiryNote;
                 }
@@ -420,7 +453,7 @@ class WOO_Product_Expiry {
                         'id'        => 'woo_expiry_date',
                         'label'     => __( 'Expiry Date', 'product-expiry-for-woocommerce' ),
                         'type'      => 'text',
-                        'desc_tip'  => __( 'Provide the date of expiry in YYYY-MM-DD format', 'product-expiry-for-woocommerce' ),
+                        'desc_tip'  => __( 'Provide the date of expiry in YYYY-MM-DD format, it will expire at midnight as per site timezone', 'product-expiry-for-woocommerce' ),
                         'description'  => __( 'Provide the date of expiry in YYYY-MM-DD format', 'product-expiry-for-woocommerce' )
                     )
                 );
@@ -522,7 +555,9 @@ class WOO_Product_Expiry {
             isset($_POST['_woope_exp_action'][ $post_id ]) &&
             $_POST['_woope_exp_action'][ $post_id ] != ''
         ) {
-            $scheduleOn = strtotime("+1 day", strtotime($_POST['_woope_exp_date'][ $post_id ]));
+            $expiry_date_str = date('Y-m-d', strtotime($_POST['_woope_exp_date'][ $post_id ]));
+            $scheduleOn = $this->get_wp_timestamp_for_midnight( $expiry_date_str );
+
             wp_clear_scheduled_hook( 'woo_expiry_schedule_action', array($post_id) );
             wp_schedule_single_event( $scheduleOn, 'woo_expiry_schedule_action', array($post_id) );
         }
@@ -551,7 +586,8 @@ class WOO_Product_Expiry {
         $product->update_meta_data( 'woo_expiry_note', sanitize_text_field( $woo_expiry_note ) );
         $product->update_meta_data( 'woo_expiry_action', sanitize_text_field( $woo_expiry_action ) );
 
-        $scheduleOn = strtotime("+1 day", strtotime($woo_expiry_date));
+        $expiry_date_str = date('Y-m-d', strtotime($woo_expiry_date));
+        $scheduleOn = $this->get_wp_timestamp_for_midnight( $expiry_date_str );
 
         if ($woo_expiry_date != '' && $woo_expiry_action != '') {
             wp_clear_scheduled_hook( 'woo_expiry_schedule_action', array($post_id) );
@@ -585,14 +621,30 @@ class WOO_Product_Expiry {
             }
             $expiryDate = $product->get_meta('woo_expiry_date');
             $expiryNote = $product->get_meta('woo_expiry_note');
-            if($expiryNote != ''){
-                echo '<p class="woope-notice">'.$expiryNote.'</p>';
-            } elseif ($expiryDate != '') {
-                $dateFormat = $savedSettings['date_format'];
+            if ($expiryDate !== '') {
+
+                $dateFormat    = $savedSettings['date_format'];
                 $formattedDate = date($dateFormat, strtotime($expiryDate));
-                $text = str_replace("%date%", $formattedDate, $savedSettings['markup']);
-                $text = apply_filters('wpml_translate_single_string', $text, 'product-expiry-for-woocommerce', 'date-markup' );
-                echo '<p class="woope-notice">'.$text.'</p>';
+
+                $markup = str_replace('%date%', '{{expiry_date}}', $savedSettings['markup']);
+
+                $markup = apply_filters(
+                    'wpml_translate_single_string',
+                    $markup,
+                    'product-expiry-for-woocommerce',
+                    'date-markup'
+                );
+
+                $markup = str_replace('{{expiry_date}}', $formattedDate, $markup);
+
+                $markup = apply_filters(
+                    'product_expiry_text_markup',
+                    $markup,
+                    $product->get_id(),
+                    $formattedDate
+                );
+
+                echo '<p class="woope-notice">' . wp_kses_post($markup) . '</p>';
             }
             if ($product->is_type('variable')) {
                 echo '<p class="woope-variable-notice"></p>';
@@ -705,5 +757,15 @@ class WOO_Product_Expiry {
         return $query;
     }
 
+    // Helper methond to fix timezone issue by @akukameda
+    private function get_wp_timestamp_for_midnight( $date_string ) {
+        $tz_string = get_option( 'timezone_string' ) ? get_option( 'timezone_string' ) : 'UTC';
+        $timezone = new DateTimeZone( $tz_string );
+
+        $datetime = new DateTime( $date_string, $timezone );
+        $datetime->modify('+1 day');
+        
+        return $datetime->getTimestamp();
+    }
 }
 new WOO_Product_Expiry();

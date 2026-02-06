@@ -2,8 +2,8 @@
 Contributors: webcodingplace
 Tags: woo, woocommerce, product, product expiry, woo notifications
 Requires at least: 3.5
-Tested up to: 6.8
-Stable tag: 2.7
+Tested up to: 6.9
+Stable tag: 2.9
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -66,6 +66,14 @@ Yes. You can bulk-edit or quick-edit expiry dates from the product listing page 
 5. Expire date in order emails
 
 == Changelog ==
+
+= 2.9 =
+
+- Bug Fixed: WPML breaks %date% placeholder in emails and frontend
+
+= 2.8 =
+
+- Bug Fixed: Date is not respecting the site's timezone settings. (credits: @akukameda)
 
 = 2.7 =
 
