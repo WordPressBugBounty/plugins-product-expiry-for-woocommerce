@@ -1,8 +1,8 @@
 <div class="wrap woope-settings">
 	<?php
         $default = array(
-            'single_hook'   =>  '',
-            'archive_hook'  =>  '',
+            'single_hook'   =>  'woocommerce_single_product_summary',
+            'archive_hook'  =>  'woocommerce_after_shop_loop_item_title',
             'date_format'   =>  get_option( 'date_format' ),
             'notify_emails' =>  '',
             'display'   	=>  'enable',
@@ -14,6 +14,9 @@
             'email_body'         => '',
         );
 		$savedSettings = get_option( 'woope_admin_settings', $default );
+
+        $is_custom_single  = !empty($savedSettings['single_hook']) && !array_key_exists($savedSettings['single_hook'], $common_single_hooks);
+        $is_custom_archive = !empty($savedSettings['archive_hook']) && !array_key_exists($savedSettings['archive_hook'], $common_archive_hooks);
 	?>	
     <h1><?php _e( 'Woo Product Expiry Settings', 'product-expiry-for-woocommerce' ); ?></h1>
 
@@ -35,7 +38,7 @@
             			</select>
             		</td>
             		<td>
-            			<?php _e( 'Display the expiry date on single product page.', 'product-expiry-for-woocommerce' ); ?>
+            			<?php _e( 'Display the expiry date on single product or shop pages', 'product-expiry-for-woocommerce' ); ?>
             		</td>
             	</tr>
 
@@ -49,34 +52,83 @@
             		</td>
             	</tr>
 
-            	<tr>
-            		<th><?php _e( 'Position of Date on single product page', 'product-expiry-for-woocommerce' ); ?></th>
-            		<td>
-            			<input type="text" name="single_hook" class="widefat" value="<?php echo esc_attr( $savedSettings['single_hook'] ) ?>">
-            		</td>
-            		<td>
-            			<?php _e( 'Provide hook name here.', 'product-expiry-for-woocommerce' ); ?>
-            		</td>
-            	</tr>
+                <tr>
+                    <th><?php _e( 'Position on single product page', 'product-expiry-for-woocommerce' ); ?></th>
+                    <td>
+                        <select class="woope-hook-selector" data-target="custom_single_container">
+                            <?php
+                            foreach ( $common_single_hooks as $hook => $label ) {
+                                    printf(
+                                        '<option value="%s" %s>%s</option>',
+                                        esc_attr( $hook ),
+                                        selected( $savedSettings['single_hook'], $hook, false ),
+                                        esc_html( $label )
+                                    );
+                                }
+                            ?>
+                            <option value="custom" <?php selected($is_custom_single, true); ?>><?php _e( 'Custom Hook Name...', 'product-expiry-for-woocommerce' ); ?></option>
+                        </select>
+                        
+                        <div id="custom_single_container" style="<?php echo $is_custom_single ? '' : 'display:none;'; ?> margin-top:10px;">
+                            <input type="text" name="single_hook" class="widefat" 
+                                   value="<?php echo esc_attr( $savedSettings['single_hook'] ); ?>" 
+                                   placeholder="Enter custom hook name (e.g. my_theme_hook)">
+                        </div>
+                    </td>
+                    <td>
+                        <p>
+                            <?php _e('Choose where the expiry date appears on the main product page', 'product-expiry-for-woocommerce') ?>
+                        </p>
+                    </td>
+                </tr>
 
-            	<tr>
-            		<th><?php _e( 'Position of Date on shop archive page', 'product-expiry-for-woocommerce' ) ?></th>
-            		<td>
-            			<input type="text" name="archive_hook" class="widefat" value="<?php echo esc_attr( $savedSettings['archive_hook'] ) ?>">
-            		</td>
-            		<td>
-            			<?php _e( 'Provide hook name here.', 'product-expiry-for-woocommerce' ) ?>
-            		</td>
-            	</tr>
+                <tr>
+                    <th><?php _e( 'Position on shop archive page', 'product-expiry-for-woocommerce' ) ?></th>
+                    <td>
+                        <select class="woope-hook-selector" data-target="custom_archive_container">
+                            <?php
+                            foreach ( $common_archive_hooks as $hook => $label ) {
+                                    printf(
+                                        '<option value="%s" %s>%s</option>',
+                                        esc_attr( $hook ),
+                                        selected( $savedSettings['archive_hook'], $hook, false ),
+                                        esc_html( $label )
+                                    );
+                                }
+                            ?>
+
+                            <option value="custom" <?php selected($is_custom_archive, true); ?>><?php _e( 'Custom Hook Name...', 'product-expiry-for-woocommerce' ); ?></option>
+                        </select>
+
+                        <div id="custom_archive_container" style="<?php echo $is_custom_archive ? '' : 'display:none;'; ?> margin-top:10px;">
+                            <input type="text" name="archive_hook" class="widefat" 
+                                   value="<?php echo esc_attr( $savedSettings['archive_hook'] ); ?>" 
+                                   placeholder="Enter custom hook name">
+                        </div>
+                    </td>
+                    <td>
+                        <p>
+                            <?php _e("Choose where the expiry date appears on your shop's main listing and category pages.", "product-expiry-for-woocommerce") ?>
+                        </p>
+                    </td>
+                </tr>
 
             	<tr>
             		<th><?php _e( 'Date Format', 'product-expiry-for-woocommerce' ) ?></th>
             		<td>
             			<input type="text" name="date_format" value="<?php echo esc_attr( $savedSettings['date_format'] ) ?>">
             		</td>
-            		<td>
-            			<?php _e( 'Provide format for date.', 'product-expiry-for-woocommerce' ) ?>
-            		</td>
+                    <td>
+                        <p>
+                            <?php 
+                            echo sprintf(
+                                __( 'Enter how the date should appear (e.g., %1$s). Leave blank to use your WordPress default. <a href="%2$s" target="_blank">View formatting guide</a>.', 'product-expiry-for-woocommerce' ),
+                                '<strong>d/m/Y</strong>',
+                                'https://wordpress.org/support/article/formatting-date-and-time/'
+                            ); 
+                            ?>
+                        </p>
+                    </td>
             	</tr>
 
             	<tr>
@@ -196,8 +248,6 @@
             <button type="submit" class="button button-primary">
                 <?php _e( 'Save Settings', 'product-expiry-for-woocommerce' ); ?>
             </button>
-            <span class="spinner"></span>
-            <span class="success-text"></span>
         </p>
 
     </form>

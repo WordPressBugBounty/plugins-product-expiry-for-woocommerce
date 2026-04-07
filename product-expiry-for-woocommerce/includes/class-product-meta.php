@@ -255,9 +255,6 @@ class Product_Meta {
             return;
         }
 
-        // Only schedule if action selected
-        if ( ! empty( $action ) ) {
-            Plugin::instance()->scheduler->schedule( $post_id, $date );
-        }
+        Plugin::instance()->scheduler->schedule( $post_id, $date );
     }
 }

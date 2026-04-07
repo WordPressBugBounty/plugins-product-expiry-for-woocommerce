@@ -3,7 +3,7 @@ Contributors: webcodingplace
 Tags: woo, woocommerce, product, product expiry, woo notifications
 Requires at least: 3.5
 Tested up to: 6.9
-Stable tag: 3.0
+Stable tag: 3.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -15,9 +15,10 @@ Set expiration dates for WooCommerce products and variations. Automatically chan
 
 Whether you're managing limited-time offers, perishable goods, or seasonal items, this plugin gives you complete control over product visibility based on expiry logic.
 
-### More details
+### Quick Links
 
-[Usage and more details](https://webcodingplace.com/product-expiry-for-woocommerce/).
+[Documentation](https://kb.webcodingplace.com/docs/product-expiry-for-woocommerce/).
+[More Details](https://webcodingplace.com/product-expiry-for-woocommerce/).
 
 ### 🔑 Key Features:
 - Set expiration date & time for any WooCommerce product or variation
@@ -70,6 +71,14 @@ Yes. You can bulk-edit or quick-edit expiry dates from the product listing page 
 5. Expire date in order emails
 
 == Changelog ==
+
+= 3.1 =
+
+- Feature Added: Enhanced Hook Selection UI! You can now choose display positions for Single Product and Archive pages via a user-friendly dropdown
+- Feature Added: Added support for "Custom Hooks." If your theme uses non-standard hooks, you can still enter them manually.
+- Feature Added: Modernized Admin experience with SweetAlert2 integration for smoother, real-time settings saving.
+- Feature Added: Optimized AJAX saving logic to provide better feedback when "no changes" are detected.
+- Bug Fixed: Email notification is not working when no action is selected.
 
 = 3.0 =
 

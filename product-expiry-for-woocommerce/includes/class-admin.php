@@ -52,6 +52,23 @@ class Admin {
 
     public function render_settings_page() {
 
+        $common_single_hooks = array(
+            'woocommerce_single_product_summary' => __( 'Inside Summary (Default)', 'product-expiry-for-woocommerce' ),
+            'woocommerce_before_single_product_summary' => __( 'Before Summary (Above Image)', 'product-expiry-for-woocommerce' ),
+            'woocommerce_after_single_product_summary' => __( 'After Summary (Below Tabs)', 'product-expiry-for-woocommerce' ),
+            'woocommerce_product_meta_start' => __( 'Product Meta Start', 'product-expiry-for-woocommerce' ),
+            'woocommerce_product_meta_end' => __( 'Product Meta End', 'product-expiry-for-woocommerce' ),
+            'woocommerce_before_add_to_cart_form' => __( 'Before Add to Cart Form', 'product-expiry-for-woocommerce' ),
+            'woocommerce_after_add_to_cart_form' => __( 'After Add to Cart Form', 'product-expiry-for-woocommerce' ),
+        );
+
+        $common_archive_hooks = array(
+            'woocommerce_after_shop_loop_item_title' => __( 'After Title (Default)', 'product-expiry-for-woocommerce' ),
+            'woocommerce_before_shop_loop_item_title' => __( 'Before Title', 'product-expiry-for-woocommerce' ),
+            'woocommerce_after_shop_loop_item' => __( 'After Product Link', 'product-expiry-for-woocommerce' ),
+            'woocommerce_shop_loop_item_title' => __( 'Inside Title Hook', 'product-expiry-for-woocommerce' ),
+        );
+
         include WOOPE_PATH . 'admin/views/settings.php';
     }
 
@@ -106,12 +123,17 @@ class Admin {
         }
 
         if ( $updated ) {
-            echo __( 'Settings Saved!', 'product-expiry-for-woocommerce' );
+            wp_send_json_success( __( 'Settings saved successfully!', 'product-expiry-for-woocommerce' ) );
         } else {
-            echo __( 'Unable to update, or no changes detected.', 'product-expiry-for-woocommerce' );
+            // Check if the option exists to see if "no changes" happened vs a real failure
+            $current_val = get_option( 'woope_admin_settings' );
+            
+            if ( $current_val === $settings ) {
+                wp_send_json_success( __( 'No changes detected, but settings are up to date.', 'product-expiry-for-woocommerce' ) );
+            } else {
+                wp_send_json_error( __( 'Failed to save settings. Please try again.', 'product-expiry-for-woocommerce' ) );
+            }
         }
-
-        wp_die();
     }
 
     /* -------------------------------------------------------------
@@ -144,6 +166,14 @@ class Admin {
                 WOOPE_URL . 'assets/css/admin.css',
                 [],
                 WOOPE_VERSION
+            );
+
+            wp_enqueue_script(
+                'sweetalert2',
+                WOOPE_URL . 'assets/js/sweetalert2.min.js',
+                [ 'jquery' ],
+                '11.26.24',
+                true
             );
 
             wp_enqueue_script(
